@@ -1,15 +1,13 @@
 {
-  "buildCommand": "pip install -r requirements.txt",
-  "runtime": "python3.11",
   "functions": {
-    "app.py": {
+    "api/index.py": {
       "runtime": "python3.11"
     }
   },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/app.py"
+      "destination": "/api/index.py"
     }
   ]
 }
