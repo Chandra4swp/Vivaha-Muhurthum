@@ -41,10 +41,18 @@ def get_db_connection():
         except Exception as e:
             print(f"PostgreSQL connection failed: {e}. Falling back to SQLite.")
     
-    # Fallback to SQLite
-    conn = sqlite3.connect(SQLITE_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    # Fallback to SQLite - try memory database first if file can't be opened
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except (OSError, PermissionError) as e:
+        print(f"Warning: Cannot access SQLite file at {SQLITE_DB_PATH}: {e}")
+        # Use in-memory database as last resort
+        print("Using in-memory database (data will be lost on restart)")
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
+        return conn
 
 
 def close_db_connection(conn):
