@@ -1,11 +1,18 @@
 import os
-import sqlite3
 import uuid
 import datetime
+import sqlite3
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, session
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
+
+# Import database layer
+from db import (
+    get_db_connection, close_db_connection, init_db, get_user_by_email,
+    create_user, create_profile, get_profile_by_id, search_profiles,
+    get_all_profiles, row_to_dict, USE_POSTGRES, SQLITE_DB_PATH
+)
 
 app = Flask(__name__)
 app.secret_key = "matrimonial_secret_key"
@@ -13,7 +20,6 @@ app.secret_key = "matrimonial_secret_key"
 # Config
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
-DB_PATH = os.path.join(BASE_DIR, "matrimonial.db")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -26,52 +32,8 @@ except (OSError, PermissionError):
     pass  # Read-only filesystem (e.g., Vercel serverless)
 
 
-# ── Database ──────────────────────────────────────────────────────────────────
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def init_db():
-    try:
-        with get_db() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS profiles (
-                    id          TEXT PRIMARY KEY,
-                    name        TEXT NOT NULL,
-                    email       TEXT UNIQUE NOT NULL,
-                    phone       TEXT,
-                    dob         TEXT,
-                    gender      TEXT,
-                    religion    TEXT,
-                    caste       TEXT,
-                    education   TEXT,
-                    occupation  TEXT,
-                    income      TEXT,
-                    height      TEXT,
-                    city        TEXT,
-                    state       TEXT,
-                    country     TEXT DEFAULT 'India',
-                    bio         TEXT,
-                    photo       TEXT,
-                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                    email         TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
-    except (OSError, PermissionError, sqlite3.Error) as e:
-        # Database initialization may fail on read-only filesystems (e.g., Vercel)
-        print(f"Warning: Database initialization failed: {e}")
-
+# ── Decorators & Utilities ────────────────────────────────────────────────────
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -93,18 +55,6 @@ def api_login_required(view):
             return jsonify({"error": "authentication_required"}), 401
         return view(*args, **kwargs)
     return wrapped_view
-
-
-def get_user_by_email(email):
-    with get_db() as conn:
-        return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-
-
-def create_user(email, password):
-    password_hash = generate_password_hash(password)
-    with get_db() as conn:
-        conn.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, password_hash))
-        conn.commit()
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -132,22 +82,7 @@ def register():
         profile_id = "MAT" + uuid.uuid4().hex[:8].upper()
 
         try:
-            with get_db() as conn:
-                conn.execute("""
-                    INSERT INTO profiles
-                        (id, name, email, phone, dob, gender, religion, caste,
-                         education, occupation, income, height, city, state, country, bio, photo)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (
-                    profile_id,
-                    data.get("name"), data.get("email"), data.get("phone"),
-                    data.get("dob"), data.get("gender"), data.get("religion"),
-                    data.get("caste"), data.get("education"), data.get("occupation"),
-                    data.get("income"), data.get("height"), data.get("city"),
-                    data.get("state"), data.get("country", "India"),
-                    data.get("bio"), photo_filename
-                ))
-                conn.commit()
+            create_profile(profile_id, data, photo_filename)
             return jsonify({"success": True, "id": profile_id, "message": f"Profile created! Your ID: {profile_id}"})
         except sqlite3.IntegrityError:
             return jsonify({"success": False, "message": "Email already registered."}), 400
@@ -170,67 +105,67 @@ def api_search():
     if not query:
         return jsonify([])
 
-    like = f"%{query}%"
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT * FROM profiles
-            WHERE id LIKE ? OR name LIKE ? OR email LIKE ?
-            ORDER BY created_at DESC LIMIT 20
-        """, (like, like, like)).fetchall()
-
-    results = []
-    for r in rows:
-        d = dict(r)
-        if d["photo"]:
-            d["photo_url"] = url_for("static", filename=f"uploads/{d['photo']}")
-        else:
-            d["photo_url"] = None
-        results.append(d)
-
-    return jsonify(results)
+    try:
+        rows = search_profiles(query, limit=20)
+        results = []
+        for r in rows:
+            d = row_to_dict(r)
+            if d.get("photo"):
+                d["photo_url"] = url_for("static", filename=f"uploads/{d['photo']}")
+            else:
+                d["photo_url"] = None
+            results.append(d)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/profile/<profile_id>")
 @login_required
 def profile(profile_id):
-    with get_db() as conn:
-        row = conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
-    if not row:
-        return render_template("404.html"), 404
-    data = dict(row)
-    if data["photo"]:
-        data["photo_url"] = url_for("static", filename=f"uploads/{data['photo']}")
-    else:
-        data["photo_url"] = None
+    try:
+        row = get_profile_by_id(profile_id)
+        if not row:
+            return render_template("404.html"), 404
+        
+        data = row_to_dict(row)
+        if data.get("photo"):
+            data["photo_url"] = url_for("static", filename=f"uploads/{data['photo']}")
+        else:
+            data["photo_url"] = None
 
-    if data.get("dob"):
-        try:
-            dob = datetime.date.fromisoformat(data["dob"])
-            today = datetime.date.today()
-            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-            data["age"] = f"{age} yrs"
-        except ValueError:
+        if data.get("dob"):
+            try:
+                dob = datetime.date.fromisoformat(data["dob"])
+                today = datetime.date.today()
+                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                data["age"] = f"{age} yrs"
+            except ValueError:
+                data["age"] = None
+        else:
             data["age"] = None
-    else:
-        data["age"] = None
 
-    return render_template("profile.html", profile=data)
+        return render_template("profile.html", profile=data)
+    except Exception as e:
+        return render_template("404.html"), 404
 
 
 @app.route("/api/profiles")
 @api_login_required
 def api_all_profiles():
-    with get_db() as conn:
-        rows = conn.execute("SELECT * FROM profiles ORDER BY created_at DESC").fetchall()
-    results = []
-    for r in rows:
-        d = dict(r)
-        if d["photo"]:
-            d["photo_url"] = url_for("static", filename=f"uploads/{d['photo']}")
-        else:
-            d["photo_url"] = None
-        results.append(d)
-    return jsonify(results)
+    try:
+        rows = get_all_profiles()
+        results = []
+        for r in rows:
+            d = row_to_dict(r)
+            if d.get("photo"):
+                d["photo_url"] = url_for("static", filename=f"uploads/{d['photo']}")
+            else:
+                d["photo_url"] = None
+            results.append(d)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/browse")
@@ -246,14 +181,18 @@ def login():
 
     error = None
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        user = get_user_by_email(email)
-        if not user or not check_password_hash(user["password_hash"], password):
-            error = "Invalid email or password."
-        else:
-            session["user_email"] = email
-            return redirect(url_for("index"))
+        try:
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            user = get_user_by_email(email)
+            if not user or not check_password_hash(user["password_hash"], password):
+                error = "Invalid email or password."
+            else:
+                session["user_email"] = email
+                return redirect(url_for("index"))
+        except Exception as e:
+            error = f"Database error: {str(e)}"
+            print(f"Login error: {e}")
 
     return render_template("login.html", error=error)
 
@@ -265,22 +204,26 @@ def signup():
 
     error = None
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm", "")
-        if not email or not password or not confirm:
-            error = "Please fill all fields."
-        elif password != confirm:
-            error = "Passwords do not match."
-        elif get_user_by_email(email):
-            error = "This email is already registered."
-        else:
-            try:
-                create_user(email, password)
-                session["user_email"] = email
-                return redirect(url_for("index"))
-            except sqlite3.IntegrityError:
+        try:
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            confirm = request.form.get("confirm", "")
+            if not email or not password or not confirm:
+                error = "Please fill all fields."
+            elif password != confirm:
+                error = "Passwords do not match."
+            elif get_user_by_email(email):
                 error = "This email is already registered."
+            else:
+                try:
+                    create_user(email, password)
+                    session["user_email"] = email
+                    return redirect(url_for("index"))
+                except sqlite3.IntegrityError:
+                    error = "This email is already registered."
+        except Exception as e:
+            error = f"Database error: {str(e)}"
+            print(f"Signup error: {e}")
 
     return render_template("register_user.html", error=error)
 
