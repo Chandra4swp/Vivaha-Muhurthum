@@ -27,6 +27,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Track if we're using in-memory database
 _use_memory_db = False
+_memory_db_connection = None  # Keep persistent connection for in-memory DB
 
 
 # ── Connection Management ──────────────────────────────────────────────────────
@@ -60,12 +61,20 @@ def get_db_connection():
             print("→ Switching to in-memory database")
             _use_memory_db = True
     
-    # Use in-memory database as fallback
+    # Use shared in-memory database (allows multiple connections to same DB)
     if _use_memory_db:
-        print("⚠ Using in-memory SQLite database (data will be lost on restart)")
-        conn = sqlite3.connect(':memory:')
-        conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            conn = sqlite3.connect('file::memory:?cache=shared', uri=True)
+            conn.row_factory = sqlite3.Row
+            print("⚠ Using shared in-memory SQLite database (data persists for this session)")
+            return conn
+        except Exception as e:
+            print(f"✗ Failed to connect to shared memory DB: {e}")
+            # Fallback to regular in-memory (will create separate DB per connection)
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            print("⚠ Using non-shared in-memory database (data may not persist)")
+            return conn
 
 
 def close_db_connection(conn):
@@ -201,6 +210,29 @@ def init_db():
             raise
 
 
+def _ensure_tables_exist():
+    """Ensure database tables exist (called before operations)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if users table exists
+        if USE_POSTGRES and HAS_POSTGRES:
+            cursor.execute("SELECT 1 FROM information_schema.tables WHERE table_name='users'")
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        
+        table_exists = cursor.fetchone() is not None
+        cursor.close()
+        close_db_connection(conn)
+        
+        if not table_exists:
+            print("⚠ Tables don't exist, initializing database...")
+            init_db()
+    except Exception as e:
+        print(f"Warning: Could not check tables: {e}")
+
+
 # ── User Operations ────────────────────────────────────────────────────────────
 
 def get_user_by_email(email):
@@ -210,6 +242,7 @@ def get_user_by_email(email):
     Returns: User row or None
     """
     try:
+        _ensure_tables_exist()
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -235,6 +268,7 @@ def create_user(email, password):
     Raises: Exception on database error
     """
     try:
+        _ensure_tables_exist()
         password_hash = generate_password_hash(password)
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -262,6 +296,7 @@ def create_profile(profile_id, data, photo_filename=None):
     Raises: Exception on database error
     """
     try:
+        _ensure_tables_exist()
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -311,6 +346,7 @@ def get_profile_by_id(profile_id):
     Returns: Profile row or None
     """
     try:
+        _ensure_tables_exist()
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -335,6 +371,7 @@ def search_profiles(query, limit=20):
     Returns: List of profile rows
     """
     try:
+        _ensure_tables_exist()
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -368,6 +405,7 @@ def get_all_profiles(limit=None):
     Returns: List of profile rows
     """
     try:
+        _ensure_tables_exist()
         conn = get_db_connection()
         cursor = conn.cursor()
         
