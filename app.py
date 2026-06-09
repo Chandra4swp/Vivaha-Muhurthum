@@ -293,8 +293,10 @@ def contact():
     return render_template("contact.html")
 
 
+# Initialize database on startup
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     print("\n" + "="*50)
     print("  💍 Matrimonial App running! Please hang on")
     print("  Open: http://127.0.0.1:5000")

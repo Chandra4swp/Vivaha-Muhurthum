@@ -1,0 +1,9 @@
+.git
+.gitignore
+README.md
+*.db
+*.sqlite
+.env.local
+deploy-fly.ps1
+Procfile
+runtime.txt
