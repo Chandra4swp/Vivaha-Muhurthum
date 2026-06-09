@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+.env
+.git
+*.sqlite3
+matrimonial.db
+static/uploads/
+instance/
+.DS_Store
