@@ -293,8 +293,29 @@ def contact():
     return render_template("contact.html")
 
 
+# ── Error Handlers ────────────────────────────────────────────────────────────
+
+@app.errorhandler(404)
+def not_found(error):
+    return render_template("404.html"), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({"error": "Internal server error", "message": str(error)}), 500
+
+
+@app.route("/health")
+def health():
+    """Health check endpoint for monitoring"""
+    return jsonify({"status": "ok", "message": "Server is running"}), 200
+
+
 # Initialize database on startup
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"Warning: Could not initialize database: {e}")
 
 if __name__ == "__main__":
     print("\n" + "="*50)
