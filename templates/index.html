@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Vivaha Muhurthum – Home{% endblock %}
+
+{% block head %}
+<style>
+.hero {
+  text-align: center;
+  padding: 4rem 1rem 3rem;
+}
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  color: var(--maroon);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+.hero p {
+  color: var(--text-light);
+  font-size: 1.1rem;
+  max-width: 500px;
+  margin: 0 auto 2rem;
+  line-height: 1.6;
+}
+.hero-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+.feature-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.8rem;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+.feature-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.feature-card h3 { font-family: 'Playfair Display', serif; color: var(--maroon); margin-bottom: 0.5rem; }
+.feature-card p { color: var(--text-light); font-size: 0.9rem; line-height: 1.5; }
+
+.stats {
+  display: flex; justify-content: center; gap: 3rem;
+  margin-top: 3rem; flex-wrap: wrap;
+}
+.stat { text-align: center; }
+.stat-num { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--gold); font-weight: 700; }
+.stat-label { font-size: 0.85rem; color: var(--text-light); margin-top: 0.2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <p style="color:var(--gold);font-weight:600;letter-spacing:1px;text-transform:uppercase;font-size:0.85rem;margin-bottom:0.5rem;">✦ Welcome to</p>
+  <h1>Vivaha Muhurthum<br>Find Your Perfect Match</h1>
+  <p>A private, offline matrimonial platform. All your data stays safely on your device.</p>
+  <div class="hero-btns">
+    <a href="/register" class="btn btn-gold">Create Profile</a>
+    <a href="/search" class="btn btn-outline">Search Profiles</a>
+  </div>
+</div>
+
+<div class="ornament">❧ ✦ ❧</div>
+
+<div class="features">
+  <div class="feature-card">
+    <div class="feature-icon">📋</div>
+    <h3>Register Profile</h3>
+    <p>Create a detailed matrimonial profile with photo, education, occupation, and personal details.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🔍</div>
+    <h3>Smart Search</h3>
+    <p>Find profiles instantly by searching with name, email ID, or unique profile ID number.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🔒</div>
+    <h3>100% Offline</h3>
+    <p>All data stored locally on your machine. No internet required. Complete privacy guaranteed.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">📸</div>
+    <h3>Photo Upload</h3>
+    <p>Upload and store profile photos locally. Images are saved securely on your device storage.</p>
+  </div>
+</div>
+
+<div class="stats" id="stats">
+  <div class="stat">
+    <div class="stat-num" id="totalCount">–</div>
+    <div class="stat-label">Profiles Registered</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">100%</div>
+    <div class="stat-label">Offline & Private</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">Free</div>
+    <div class="stat-label">Always Free</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/profiles').then(r=>r.json()).then(data=>{
+  document.getElementById('totalCount').textContent = data.length;
+});
+</script>
+{% endblock %}

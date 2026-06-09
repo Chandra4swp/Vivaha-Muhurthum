@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Register – Vivaha Muhurthum{% endblock %}
+
+{% block head %}
+<style>
+.page-header { margin-bottom: 2rem; }
+.page-header h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--maroon); }
+.page-header p { color: var(--text-light); margin-top: 0.3rem; }
+
+.photo-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--cream);
+  position: relative;
+}
+.photo-upload-area:hover { border-color: var(--gold); background: #FFF8EE; }
+.photo-upload-area.has-photo { border-style: solid; border-color: var(--gold); }
+
+#photoPreview {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  display: none;
+  margin: 0 auto 0.75rem;
+}
+.upload-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.upload-text { color: var(--text-light); font-size: 0.9rem; }
+#photoInput { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.submit-area { text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.success-box {
+  display: none;
+  background: #F0FFF4;
+  border: 1.5px solid #68D391;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.success-box .profile-id {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--maroon);
+  font-family: 'Playfair Display', serif;
+  letter-spacing: 2px;
+  margin-top: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Create Your Profile</h2>
+  <p>Fill in the details below to register your matrimonial profile</p>
+</div>
+
+<div class="card">
+  <div id="successBox" class="success-box">
+    <div style="font-size:2rem">🎉</div>
+    <div style="font-weight:600;margin-top:0.5rem;color:#276749">Profile Created Successfully!</div>
+    <div>Your unique Profile ID:</div>
+    <div class="profile-id" id="newProfileId"></div>
+    <div style="margin-top:1rem;display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+      <a id="viewProfileBtn" href="#" class="btn btn-primary">View Profile</a>
+      <button onclick="resetForm()" class="btn btn-outline">Add Another</button>
+    </div>
+  </div>
+
+  <form id="regForm" enctype="multipart/form-data">
+
+    <!-- Photo -->
+    <div class="section-title">📸 Profile Photo</div>
+    <div class="photo-upload-area" id="uploadArea">
+      <input type="file" name="photo" id="photoInput" accept="image/*">
+      <img id="photoPreview" src="" alt="Preview">
+      <div class="upload-icon" id="uploadIcon">📷</div>
+      <div class="upload-text" id="uploadText">Click to upload photo (JPG, PNG, max 10MB)</div>
+    </div>
+
+    <!-- Personal Details -->
+    <div class="section-title" style="margin-top:1.8rem">👤 Personal Details</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" name="name" class="form-control" required placeholder="e.g. Priya Sharma">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address *</label>
+        <input type="email" name="email" class="form-control" required placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input type="tel" name="phone" class="form-control" placeholder="+91 9876543210">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date of Birth</label>
+        <input type="date" name="dob" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender</label>
+        <select name="gender" class="form-control">
+          <option value="">Select</option>
+          <option>Male</option>
+          <option>Female</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Height</label>
+        <select name="height" class="form-control">
+          <option value="">Select</option>
+          {% for h in ["4'6\"","4'7\"","4'8\"","4'9\"","4'10\"","4'11\"","5'0\"","5'1\"","5'2\"","5'3\"","5'4\"","5'5\"","5'6\"","5'7\"","5'8\"","5'9\"","5'10\"","5'11\"","6'0\"","6'1\"","6'2\"","6'3\"","6'4\"","6'5\""] %}
+          <option>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Religion -->
+    <div class="section-title">🙏 Religion & Community</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Religion</label>
+        <select name="religion" class="form-control">
+          <option value="">Select</option>
+          <option>Hindu</option><option>Muslim</option><option>Christian</option>
+          <option>Sikh</option><option>Jain</option><option>Buddhist</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Caste / Community</label>
+        <input type="text" name="caste" class="form-control" placeholder="e.g. Brahmin, Yadav...">
+      </div>
+    </div>
+
+    <!-- Education & Career -->
+    <div class="section-title">🎓 Education & Career</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Education</label>
+        <select name="education" class="form-control">
+          <option value="">Select</option>
+          <option>Below 10th</option><option>10th Pass</option><option>12th Pass</option>
+          <option>Diploma</option><option>Bachelor's Degree</option><option>Master's Degree</option>
+          <option>MBA</option><option>Engineering</option><option>Medicine (MBBS)</option>
+          <option>PhD / Doctorate</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Occupation</label>
+        <input type="text" name="occupation" class="form-control" placeholder="e.g. Software Engineer">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Annual Income</label>
+        <select name="income" class="form-control">
+          <option value="">Select</option>
+          <option>Below 2 LPA</option><option>2–5 LPA</option><option>5–10 LPA</option>
+          <option>10–20 LPA</option><option>20–50 LPA</option><option>50+ LPA</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="section-title">📍 Location</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">City</label>
+        <input type="text" name="city" class="form-control" placeholder="e.g. Chennai">
+      </div>
+      <div class="form-group">
+        <label class="form-label">State</label>
+        <input type="text" name="state" class="form-control" placeholder="e.g. Tamil Nadu">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Country</label>
+        <input type="text" name="country" class="form-control" value="India">
+      </div>
+    </div>
+
+    <!-- Bio -->
+    <div class="section-title">📝 About Me</div>
+    <div class="form-group">
+      <label class="form-label">Bio / Description</label>
+      <textarea name="bio" class="form-control" placeholder="Write a brief description about yourself, your family, and what you're looking for..."></textarea>
+    </div>
+
+    <div class="submit-area">
+      <button type="submit" class="btn btn-gold" style="padding: 0.8rem 3rem; font-size:1rem;" id="submitBtn">
+        Create My Profile ✦
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Photo preview
+const photoInput = document.getElementById('photoInput');
+const photoPreview = document.getElementById('photoPreview');
+const uploadIcon = document.getElementById('uploadIcon');
+const uploadText = document.getElementById('uploadText');
+const uploadArea = document.getElementById('uploadArea');
+
+photoInput.addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoPreview.src = e.target.result;
+    photoPreview.style.display = 'block';
+    uploadIcon.style.display = 'none';
+    uploadText.textContent = file.name;
+    uploadArea.classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+});
+
+// Form submit
+document.getElementById('regForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  const formData = new FormData(this);
+  try {
+    const resp = await fetch('/register', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.success) {
+      document.getElementById('newProfileId').textContent = data.id;
+      document.getElementById('viewProfileBtn').href = '/profile/' + data.id;
+      document.getElementById('successBox').style.display = 'block';
+      this.style.display = 'none';
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch(err) {
+    showToast('Error saving profile. Please try again.', 'error');
+  }
+  btn.textContent = 'Create My Profile ✦';
+  btn.disabled = false;
+});
+
+function resetForm() {
+  document.getElementById('regForm').reset();
+  document.getElementById('regForm').style.display = '';
+  document.getElementById('successBox').style.display = 'none';
+  photoPreview.style.display = 'none';
+  uploadIcon.style.display = '';
+  uploadText.textContent = 'Click to upload photo';
+  uploadArea.classList.remove('has-photo');
+}
+</script>
+{% endblock %}

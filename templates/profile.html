@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.name }} – Vivaha Muhurthum{% endblock %}
+
+{% block head %}
+<style>
+.profile-hero {
+  display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap;
+  background: var(--white); border-radius: 16px; padding: 2rem;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+}
+.profile-photo {
+  width: 160px; height: 160px; border-radius: 50%;
+  object-fit: cover; border: 4px solid var(--gold);
+  flex-shrink: 0;
+}
+.profile-photo-placeholder {
+  width: 160px; height: 160px; border-radius: 50%;
+  background: linear-gradient(135deg, #F5E6D3, #E8C4B4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem; border: 4px solid var(--border);
+  flex-shrink: 0;
+}
+.profile-main h1 { font-family: 'Playfair Display', serif; font-size: 1.9rem; color: var(--maroon); }
+.profile-id-badge {
+  display: inline-block; background: var(--maroon); color: var(--gold-light);
+  border-radius: 20px; padding: 0.25rem 1rem; font-size: 0.85rem;
+  font-weight: 600; letter-spacing: 1.5px; margin: 0.5rem 0 1rem;
+}
+.quick-info { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.q-tag {
+  background: var(--cream); border: 1px solid var(--border);
+  border-radius: 20px; padding: 0.3rem 0.9rem; font-size: 0.88rem; color: var(--text);
+}
+
+.detail-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+.detail-section {
+  background: var(--white); border-radius: 12px;
+  padding: 1.5rem; border: 1px solid var(--border);
+}
+.detail-section h3 {
+  font-family: 'Playfair Display', serif; color: var(--maroon);
+  font-size: 1.05rem; margin-bottom: 1rem;
+  padding-bottom: 0.5rem; border-bottom: 1.5px solid var(--border);
+}
+.detail-row {
+  display: flex; justify-content: space-between;
+  padding: 0.45rem 0; border-bottom: 1px solid #F5EDE4;
+  font-size: 0.9rem;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-key { color: var(--text-light); font-weight: 500; }
+.detail-val { color: var(--text); font-weight: 500; text-align: right; max-width: 60%; }
+
+.bio-box {
+  background: var(--white); border-radius: 12px;
+  padding: 1.5rem; border: 1px solid var(--border); margin-top: 1.5rem;
+}
+.bio-box h3 { font-family: 'Playfair Display', serif; color: var(--maroon); margin-bottom: 0.75rem; }
+.bio-box p { color: var(--text); line-height: 1.7; }
+
+.back-bar { margin-bottom: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="back-bar">
+  <a href="/search" class="btn btn-outline" style="font-size:0.85rem">← Back to Search</a>
+  <a href="/browse" class="btn btn-outline" style="font-size:0.85rem;margin-left:0.5rem">Browse All</a>
+</div>
+
+<div class="profile-hero">
+  {% if profile.photo_url %}
+    <img src="{{ profile.photo_url }}" alt="{{ profile.name }}" class="profile-photo">
+  {% else %}
+    <div class="profile-photo-placeholder">👤</div>
+  {% endif %}
+  <div class="profile-main">
+    <h1>{{ profile.name }}</h1>
+    <div class="profile-id-badge">ID: {{ profile.id }}</div>
+    <div class="quick-info">
+      {% if profile.age %}
+        <span class="q-tag">🎂 {{ profile.age }}</span>
+      {% endif %}
+      {% if profile.gender %}<span class="q-tag">{{ '♂' if profile.gender=='Male' else '♀' if profile.gender=='Female' else '⚧' }} {{ profile.gender }}</span>{% endif %}
+      {% if profile.religion %}<span class="q-tag">🙏 {{ profile.religion }}</span>{% endif %}
+      {% if profile.height %}<span class="q-tag">📏 {{ profile.height }}</span>{% endif %}
+      {% if profile.city %}<span class="q-tag">📍 {{ profile.city }}{% if profile.state %}, {{ profile.state }}{% endif %}</span>{% endif %}
+    </div>
+    <div style="color:var(--text-light);font-size:0.82rem">
+      📧 {{ profile.email }} {% if profile.phone %} &nbsp;·&nbsp; 📞 {{ profile.phone }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-section">
+    <h3>👤 Personal Details</h3>
+    {% for label, val in [
+      ('Date of Birth', profile.dob),
+      ('Gender', profile.gender),
+      ('Height', profile.height),
+      ('Religion', profile.religion),
+      ('Caste / Community', profile.caste),
+    ] %}
+    {% if val %}
+    <div class="detail-row">
+      <span class="detail-key">{{ label }}</span>
+      <span class="detail-val">{{ val }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="detail-section">
+    <h3>🎓 Education & Career</h3>
+    {% for label, val in [
+      ('Education', profile.education),
+      ('Occupation', profile.occupation),
+      ('Annual Income', profile.income),
+    ] %}
+    {% if val %}
+    <div class="detail-row">
+      <span class="detail-key">{{ label }}</span>
+      <span class="detail-val">{{ val }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="detail-section">
+    <h3>📍 Location</h3>
+    {% for label, val in [
+      ('City', profile.city),
+      ('State', profile.state),
+      ('Country', profile.country),
+    ] %}
+    {% if val %}
+    <div class="detail-row">
+      <span class="detail-key">{{ label }}</span>
+      <span class="detail-val">{{ val }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="detail-section">
+    <h3>📋 Contact Info</h3>
+    <div class="detail-row">
+      <span class="detail-key">Email</span>
+      <span class="detail-val">{{ profile.email }}</span>
+    </div>
+    {% if profile.phone %}
+    <div class="detail-row">
+      <span class="detail-key">Phone</span>
+      <span class="detail-val">{{ profile.phone }}</span>
+    </div>
+    {% endif %}
+    <div class="detail-row">
+      <span class="detail-key">Registered On</span>
+      <span class="detail-val">{{ profile.created_at[:10] if profile.created_at else '–' }}</span>
+    </div>
+  </div>
+</div>
+
+{% if profile.bio %}
+<div class="bio-box">
+  <h3>📝 About {{ profile.name }}</h3>
+  <p>{{ profile.bio }}</p>
+</div>
+{% endif %}
+{% endblock %}

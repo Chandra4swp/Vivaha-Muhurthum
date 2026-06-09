@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Contact Us – Vivaha Muhurthum{% endblock %}
+
+{% block head %}
+<style>
+.contact-visuals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.contact-visuals img {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  background: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2 class="section-title">Contact Us</h2>
+  <div class="contact-visuals">
+    <img src="{{ url_for('static', filename='seetha-kalyanam.png') }}" alt="Seetha Kalyanam">
+    <img src="{{ url_for('static', filename='Venkateswara.png') }}" alt="Venkateswara">
+  </div>
+  <p style="font-size:1rem; line-height:1.8; color:var(--text-light); margin-top:1.5rem;">
+    Branch Location:
+  </p>
+  <div style="font-size:1rem; line-height:1.8; color:var(--text); margin-top:0.5rem;">
+    <strong>Mahendra Lagnam</strong><br>
+    Prop: CH Sri Lakshmi<br>
+    Beside India Bank ATM<br>
+    Enkur<br>
+    Pin: 507168<br>
+    Mobile: 8498999603
+  </div>
+  <div style="margin-top:1.5rem;">
+    <iframe
+      width="100%"
+      height="380"
+      style="border:0; border-radius:16px;"
+      loading="lazy"
+      allowfullscreen
+      referrerpolicy="no-referrer-when-downgrade"
+      src="https://maps.google.com/maps?q=Mahendra%20Lagnam,%20CH%20Sri%20Lakshmi,%20Beside%20India%20Bank%20ATM,%20Enkur%20507168&t=&z=15&ie=UTF8&iwloc=&output=embed"
+    ></iframe>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Search – Vivaha Muhurthum{% endblock %}
+
+{% block head %}
+<style>
+.search-hero { text-align: center; padding: 2rem 0 1.5rem; }
+.search-hero h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--maroon); margin-bottom: 0.3rem; }
+.search-hero p { color: var(--text-light); }
+
+.search-box {
+  display: flex; gap: 0.75rem; margin: 1.5rem auto;
+  max-width: 600px;
+}
+.search-box input {
+  flex: 1;
+  padding: 0.75rem 1.1rem;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--white);
+  transition: border-color 0.2s;
+}
+.search-box input:focus { outline: none; border-color: var(--gold); }
+.search-box button { white-space: nowrap; padding: 0.75rem 1.5rem; }
+
+.search-hint { text-align: center; color: var(--text-light); font-size: 0.85rem; margin-bottom: 2rem; }
+.search-hint span { background: var(--cream); border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.7rem; margin: 0 0.2rem; font-size: 0.8rem; }
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.profile-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.profile-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(123,45,66,0.15); }
+
+.card-photo {
+  height: 180px;
+  background: linear-gradient(135deg, #F5E6D3, #E8C4B4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem;
+  overflow: hidden;
+}
+.card-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+.card-body { padding: 1.2rem; }
+.card-id { font-size: 0.75rem; color: var(--gold); font-weight: 600; letter-spacing: 1px; }
+.card-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--maroon); margin: 0.2rem 0; }
+.card-details { font-size: 0.85rem; color: var(--text-light); line-height: 1.6; }
+.card-tag { display: inline-block; background: var(--cream); border: 1px solid var(--border); border-radius: 20px; padding: 0.15rem 0.6rem; font-size: 0.78rem; margin: 0.3rem 0.2rem 0 0; color: var(--text); }
+
+.no-results { text-align: center; padding: 3rem; color: var(--text-light); }
+.no-results .icon { font-size: 3rem; margin-bottom: 1rem; }
+#spinner { text-align: center; padding: 2rem; display: none; color: var(--text-light); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-hero">
+  <h2>🔍 Search Profiles</h2>
+  <p>Find matrimonial profiles by name, email, or profile ID</p>
+</div>
+
+<div class="search-box">
+  <input type="text" id="searchInput" placeholder="Enter name, email, or profile ID (e.g. MAT12345678)…" autofocus>
+  <button class="btn btn-primary" onclick="doSearch()">Search</button>
+</div>
+<div class="search-hint">
+  Search by: <span>Full Name</span> <span>Email ID</span> <span>Profile ID</span>
+</div>
+
+<div id="spinner">⏳ Searching…</div>
+<div id="resultsArea"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const input = document.getElementById('searchInput');
+let timer;
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+input.addEventListener('input', () => {
+  clearTimeout(timer);
+  if (input.value.length >= 2) timer = setTimeout(doSearch, 400);
+  else if (!input.value) document.getElementById('resultsArea').innerHTML = '';
+});
+
+async function doSearch() {
+  const q = input.value.trim();
+  if (!q) return;
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('resultsArea').innerHTML = '';
+
+  const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+  const data = await resp.json();
+  document.getElementById('spinner').style.display = 'none';
+
+  if (!data.length) {
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="no-results">
+        <div class="icon">🔍</div>
+        <div>No profiles found for "<strong>${q}</strong>"</div>
+        <div style="margin-top:0.5rem;font-size:0.85rem">Try searching by email or profile ID</div>
+      </div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'results-grid';
+  data.forEach(p => {
+    const age = p.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25*24*3600*1000)) + ' yrs' : '';
+    const loc = [p.city, p.state].filter(Boolean).join(', ');
+    grid.innerHTML += `
+      <a class="profile-card" href="/profile/${p.id}">
+        <div class="card-photo">
+          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}">` : '👤'}
+        </div>
+        <div class="card-body">
+          <div class="card-id">${p.id}</div>
+          <div class="card-name">${p.name}</div>
+          <div class="card-details">
+            ${[age, p.gender, p.religion].filter(Boolean).join(' · ')}<br>
+            ${[p.education, p.occupation].filter(Boolean).join(' · ')}<br>
+            ${loc || ''}
+          </div>
+          <div>
+            ${p.height ? `<span class="card-tag">📏 ${p.height}</span>` : ''}
+            ${p.income ? `<span class="card-tag">💼 ${p.income}</span>` : ''}
+          </div>
+        </div>
+      </a>`;
+  });
+
+  const summary = document.createElement('div');
+  summary.style.cssText = 'color:var(--text-light);font-size:0.9rem;margin-bottom:1rem;';
+  summary.textContent = `Found ${data.length} profile${data.length > 1 ? 's' : ''}`;
+  document.getElementById('resultsArea').appendChild(summary);
+  document.getElementById('resultsArea').appendChild(grid);
+}
+</script>
+{% endblock %}

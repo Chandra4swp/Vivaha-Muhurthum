@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Browse – Vivaha Muhurthum{% endblock %}
+
+{% block head %}
+<style>
+.browse-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem; }
+.browse-header h2 { font-family:'Playfair Display',serif; font-size:1.7rem; color:var(--maroon); }
+.filter-bar { display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+.filter-bar select { padding:0.5rem 0.8rem; border:1.5px solid var(--border); border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.88rem; background:var(--white); color:var(--text); cursor:pointer; }
+.filter-bar select:focus { outline:none; border-color:var(--gold); }
+
+.profiles-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.2rem; }
+
+.p-card {
+  background:var(--white); border:1px solid var(--border); border-radius:14px;
+  overflow:hidden; text-decoration:none; color:inherit; display:block;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.p-card:hover { transform:translateY(-3px); box-shadow:0 8px 28px rgba(123,45,66,0.13); }
+.p-card-img { height:150px; background:linear-gradient(135deg,#F5E6D3,#E8C4B4); display:flex; align-items:center; justify-content:center; font-size:3.5rem; overflow:hidden; }
+.p-card-img img { width:100%; height:100%; object-fit:cover; }
+.p-card-body { padding:1rem; }
+.p-card-id { font-size:0.72rem; color:var(--gold); font-weight:600; letter-spacing:1px; }
+.p-card-name { font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--maroon); }
+.p-card-info { font-size:0.82rem; color:var(--text-light); margin-top:0.2rem; line-height:1.5; }
+.empty { text-align:center; padding:4rem 1rem; color:var(--text-light); }
+.empty .icon { font-size:3rem; margin-bottom:1rem; }
+#count { color:var(--text-light); font-size:0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="browse-header">
+  <div>
+    <h2>Browse Profiles</h2>
+    <span id="count">Loading…</span>
+  </div>
+  <a href="/register" class="btn btn-gold">+ Add Profile</a>
+</div>
+
+<div class="filter-bar">
+  <select id="fGender" onchange="applyFilters()">
+    <option value="">All Genders</option>
+    <option>Male</option><option>Female</option><option>Other</option>
+  </select>
+  <select id="fReligion" onchange="applyFilters()">
+    <option value="">All Religions</option>
+    <option>Hindu</option><option>Muslim</option><option>Christian</option>
+    <option>Sikh</option><option>Jain</option><option>Buddhist</option><option>Other</option>
+  </select>
+  <select id="fCaste" onchange="applyFilters()">
+    <option value="">All Caste / Community</option>
+  </select>
+  <select id="fCity" onchange="applyFilters()">
+    <option value="">All Cities</option>
+  </select>
+  <select id="fEducation" onchange="applyFilters()">
+    <option value="">All Education</option>
+    <option>Bachelor's Degree</option><option>Master's Degree</option>
+    <option>Engineering</option><option>MBA</option><option>Medicine (MBBS)</option><option>PhD / Doctorate</option>
+  </select>
+</div>
+
+<div class="profiles-grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">
+  <div class="icon">🤷</div>
+  <div>No profiles match your filters</div>
+  <a href="/register" class="btn btn-primary" style="margin-top:1rem;display:inline-block">Register First Profile</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allProfiles = [];
+
+async function loadProfiles() {
+  const resp = await fetch('/api/profiles');
+  allProfiles = await resp.json();
+  populateFilterOptions();
+  applyFilters();
+}
+
+function populateFilterOptions() {
+  const castes = new Set();
+  const cities = new Set();
+
+  allProfiles.forEach(p => {
+    if (p.caste) castes.add(p.caste);
+    if (p.city) cities.add(p.city);
+  });
+
+  const casteSelect = document.getElementById('fCaste');
+  const citySelect = document.getElementById('fCity');
+
+  Array.from(castes).sort((a,b) => a.localeCompare(b)).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    casteSelect.appendChild(opt);
+  });
+
+  Array.from(cities).sort((a,b) => a.localeCompare(b)).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    citySelect.appendChild(opt);
+  });
+}
+
+function applyFilters() {
+  const gender = document.getElementById('fGender').value;
+  const religion = document.getElementById('fReligion').value;
+  const caste = document.getElementById('fCaste').value;
+  const city = document.getElementById('fCity').value;
+  const education = document.getElementById('fEducation').value;
+
+  let filtered = allProfiles.filter(p =>
+    (!gender || p.gender === gender) &&
+    (!religion || p.religion === religion) &&
+    (!caste || p.caste === caste) &&
+    (!city || p.city === city) &&
+    (!education || p.education === education)
+  );
+
+  document.getElementById('count').textContent = `${filtered.length} profile${filtered.length !== 1 ? 's' : ''} found`;
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+
+  if (!filtered.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = filtered.map(p => {
+    const loc = [p.city, p.state].filter(Boolean).join(', ');
+    const info = [p.gender, p.religion, p.education].filter(Boolean).join(' · ');
+    return `
+      <a class="p-card" href="/profile/${p.id}">
+        <div class="p-card-img">
+          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}">` : '👤'}
+        </div>
+        <div class="p-card-body">
+          <div class="p-card-id">${p.id}</div>
+          <div class="p-card-name">${p.name}</div>
+          <div class="p-card-info">${info || 'Details not provided'}<br>${loc || ''}</div>
+        </div>
+      </a>`;
+  }).join('');
+}
+
+loadProfiles();
+</script>
+{% endblock %}

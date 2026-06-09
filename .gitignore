@@ -1,0 +1,15 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Environment files
+.env
+venv/
+
+# Database and uploads
+matrimonial.db
+static/uploads/
+
+# VS Code settings
+.vscode/
