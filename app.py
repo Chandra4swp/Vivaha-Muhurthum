@@ -19,7 +19,11 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Try to create upload folder (will fail on read-only filesystems like Vercel)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except (OSError, PermissionError):
+    pass  # Read-only filesystem (e.g., Vercel serverless)
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -31,38 +35,42 @@ def get_db():
 
 
 def init_db():
-    with get_db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS profiles (
-                id          TEXT PRIMARY KEY,
-                name        TEXT NOT NULL,
-                email       TEXT UNIQUE NOT NULL,
-                phone       TEXT,
-                dob         TEXT,
-                gender      TEXT,
-                religion    TEXT,
-                caste       TEXT,
-                education   TEXT,
-                occupation  TEXT,
-                income      TEXT,
-                height      TEXT,
-                city        TEXT,
-                state       TEXT,
-                country     TEXT DEFAULT 'India',
-                bio         TEXT,
-                photo       TEXT,
-                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                email         TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS profiles (
+                    id          TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL,
+                    email       TEXT UNIQUE NOT NULL,
+                    phone       TEXT,
+                    dob         TEXT,
+                    gender      TEXT,
+                    religion    TEXT,
+                    caste       TEXT,
+                    education   TEXT,
+                    occupation  TEXT,
+                    income      TEXT,
+                    height      TEXT,
+                    city        TEXT,
+                    state       TEXT,
+                    country     TEXT DEFAULT 'India',
+                    bio         TEXT,
+                    photo       TEXT,
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email         TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+    except (OSError, PermissionError, sqlite3.Error) as e:
+        # Database initialization may fail on read-only filesystems (e.g., Vercel)
+        print(f"Warning: Database initialization failed: {e}")
 
 
 def allowed_file(filename):
