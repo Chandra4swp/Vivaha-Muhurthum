@@ -69,25 +69,33 @@ def index():
 @login_required
 def register():
     if request.method == "POST":
-        data = request.form
-        photo_filename = None
-
-        if "photo" in request.files:
-            file = request.files["photo"]
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit(".", 1)[1].lower()
-                photo_filename = f"{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(app.config["UPLOAD_FOLDER"], photo_filename))
-
-        profile_id = "MAT" + uuid.uuid4().hex[:8].upper()
-
         try:
+            data = request.form
+            photo_filename = None
+
+            if "photo" in request.files:
+                file = request.files["photo"]
+                if file and file.filename and allowed_file(file.filename):
+                    try:
+                        ext = file.filename.rsplit(".", 1)[1].lower()
+                        photo_filename = f"{uuid.uuid4().hex}.{ext}"
+                        file.save(os.path.join(app.config["UPLOAD_FOLDER"], photo_filename))
+                    except (OSError, PermissionError) as e:
+                        print(f"Warning: Could not save photo: {e}")
+                        photo_filename = None  # Continue without photo
+
+            profile_id = "MAT" + uuid.uuid4().hex[:8].upper()
+
             create_profile(profile_id, data, photo_filename)
             return jsonify({"success": True, "id": profile_id, "message": f"Profile created! Your ID: {profile_id}"})
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as e:
+            print(f"Profile integrity error: {e}")
             return jsonify({"success": False, "message": "Email already registered."}), 400
         except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 500
+            print(f"Profile creation error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
     return render_template("register.html")
 
@@ -185,13 +193,15 @@ def login():
             email = request.form.get("email", "").strip().lower()
             password = request.form.get("password", "")
             user = get_user_by_email(email)
-            if not user or not check_password_hash(user["password_hash"], password):
-                error = "Invalid email or password."
-            else:
-                session["user_email"] = email
-                return redirect(url_for("index"))
+            if user:
+                # Convert row to dict if needed
+                user_dict = row_to_dict(user) if not isinstance(user, dict) else user
+                if check_password_hash(user_dict.get("password_hash", ""), password):
+                    session["user_email"] = email
+                    return redirect(url_for("index"))
+            error = "Invalid email or password."
         except Exception as e:
-            error = f"Database error: {str(e)}"
+            error = f"Login error: {str(e)}"
             print(f"Login error: {e}")
 
     return render_template("login.html", error=error)
@@ -212,17 +222,20 @@ def signup():
                 error = "Please fill all fields."
             elif password != confirm:
                 error = "Passwords do not match."
-            elif get_user_by_email(email):
-                error = "This email is already registered."
             else:
-                try:
-                    create_user(email, password)
-                    session["user_email"] = email
-                    return redirect(url_for("index"))
-                except sqlite3.IntegrityError:
+                # Check if user already exists
+                existing_user = get_user_by_email(email)
+                if existing_user:
                     error = "This email is already registered."
+                else:
+                    try:
+                        create_user(email, password)
+                        session["user_email"] = email
+                        return redirect(url_for("index"))
+                    except sqlite3.IntegrityError:
+                        error = "This email is already registered."
         except Exception as e:
-            error = f"Database error: {str(e)}"
+            error = f"Error: {str(e)}"
             print(f"Signup error: {e}")
 
     return render_template("register_user.html", error=error)
