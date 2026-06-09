@@ -25,6 +25,9 @@ SQLITE_DB_PATH = os.path.join(BASE_DIR, "matrimonial.db")
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Track if we're using in-memory database
+_use_memory_db = False
+
 
 # ── Connection Management ──────────────────────────────────────────────────────
 
@@ -33,23 +36,33 @@ def get_db_connection():
     Get database connection (PostgreSQL for production, SQLite for local development)
     Returns: Connection object with cursor available
     """
+    global _use_memory_db
+    
+    # Try PostgreSQL first if DATABASE_URL is set
     if USE_POSTGRES and HAS_POSTGRES:
         try:
             conn = psycopg2.connect(DATABASE_URL)
             conn.cursor_factory = psycopg2.extras.DictCursor
+            print("✓ Connected to PostgreSQL")
             return conn
         except Exception as e:
-            print(f"PostgreSQL connection failed: {e}. Falling back to SQLite.")
+            print(f"✗ PostgreSQL connection failed: {e}")
     
-    # Fallback to SQLite - try memory database first if file can't be opened
-    try:
-        conn = sqlite3.connect(SQLITE_DB_PATH)
-        conn.row_factory = sqlite3.Row
-        return conn
-    except (OSError, PermissionError) as e:
-        print(f"Warning: Cannot access SQLite file at {SQLITE_DB_PATH}: {e}")
-        # Use in-memory database as last resort
-        print("Using in-memory database (data will be lost on restart)")
+    # Try SQLite file database
+    if not _use_memory_db:
+        try:
+            conn = sqlite3.connect(SQLITE_DB_PATH, timeout=5)
+            conn.row_factory = sqlite3.Row
+            print(f"✓ Connected to SQLite: {SQLITE_DB_PATH}")
+            return conn
+        except (OSError, PermissionError, sqlite3.Error) as e:
+            print(f"✗ Cannot access SQLite file ({SQLITE_DB_PATH}): {e}")
+            print("→ Switching to in-memory database")
+            _use_memory_db = True
+    
+    # Use in-memory database as fallback
+    if _use_memory_db:
+        print("⚠ Using in-memory SQLite database (data will be lost on restart)")
         conn = sqlite3.connect(':memory:')
         conn.row_factory = sqlite3.Row
         return conn
@@ -137,9 +150,55 @@ def init_db():
         conn.commit()
         cursor.close()
         close_db_connection(conn)
-        print("Database initialized successfully")
-    except (OSError, PermissionError, sqlite3.Error, Exception) as e:
-        print(f"Warning: Database initialization failed: {e}")
+        print("✓ Database initialized successfully")
+    except Exception as e:
+        print(f"✗ Database initialization error: {e}")
+        print("→ Attempting to re-initialize with in-memory database")
+        
+        # Force in-memory database and try again
+        global _use_memory_db
+        _use_memory_db = True
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            # Create SQLite tables for in-memory DB
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS profiles (
+                    id          TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL,
+                    email       TEXT UNIQUE NOT NULL,
+                    phone       TEXT,
+                    dob         TEXT,
+                    gender      TEXT,
+                    religion    TEXT,
+                    caste       TEXT,
+                    education   TEXT,
+                    occupation  TEXT,
+                    income      TEXT,
+                    height      TEXT,
+                    city        TEXT,
+                    state       TEXT,
+                    country     TEXT DEFAULT 'India',
+                    bio         TEXT,
+                    photo       TEXT,
+                    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email         TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+            cursor.close()
+            close_db_connection(conn)
+            print("✓ Database re-initialized with in-memory storage")
+        except Exception as e2:
+            print(f"✗ Failed to initialize in-memory database: {e2}")
+            raise
 
 
 # ── User Operations ────────────────────────────────────────────────────────────
